@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 db_path = "sharingbox.db"
-os.remove(db_path)
+os.remove(db_path) if os.path.exists(db_path) else None
 conn = sqlite3.connect(db_path) # или :memory: чтобы сохранить в RAM
 cursor = conn.cursor()
 
