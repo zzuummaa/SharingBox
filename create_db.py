@@ -9,13 +9,22 @@ cursor = conn.cursor()
 cursor.execute("""CREATE TABLE users (
                     user_id integer primary key autoincrement,
                     user_name text,
-                    rfid_uid int not null,
+                    rfid_uid integer not null,
                     UNIQUE(rfid_uid)
                   )""")
 
 cursor.execute("""CREATE TABLE devices (
                     device_id integer primary key autoincrement,
-                    device_token text not null
+                    device_token text not null,
+                    UNIQUE(device_token)
+                  )""")
+
+cursor.execute("""CREATE TABLE equipments (
+                    equipment_id integer primary key autoincrement,
+                    user_id   integer,
+                    device_id integer,
+                    FOREIGN KEY(user_id) REFERENCES users(user_id)
+                    FOREIGN KEY(device_id) REFERENCES devices(device_id)
                   )""")
 
 cursor.execute("""CREATE TABLE rents (
