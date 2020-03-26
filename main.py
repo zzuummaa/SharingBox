@@ -1,7 +1,6 @@
 #!flask/bin/python
-from flask import Flask, jsonify, request, abort, g, make_response
+from flask import Flask, jsonify, request, g
 import sqlite3
-from uuid import uuid4
 import datetime
 
 DATABASE = "sharingbox.db"
@@ -42,6 +41,17 @@ def query_db(query, args=(), ret_lastrowid=False, ret_rowcount=False):
 app = Flask(__name__)
 
 
+class ValidationError(Exception):
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.code = code
+
+
+@app.errorhandler(ValidationError)
+def handle_database_error(e):
+    return my_response(error=str(e), code=e.code)
+
+
 @app.errorhandler(sqlite3.DatabaseError)
 def handle_database_error(e):
     if isinstance(e, sqlite3.IntegrityError):
@@ -71,17 +81,34 @@ def add_user():
         return my_response(error="Invalid request parameters", code=400)
 
     user_params = (request.json["user_name"], request.json["rfid_uid"])
-    res = query_db("""insert into users(user_name, rfid_uid) values(?,?)""", user_params)
+    query_db("""insert into users(user_name, rfid_uid) values(?,?)""", user_params)
     return my_response()
+
+
+def user_by_rfid(rfid_id):
+    res = query_db("""select * from users where rfid_uid=?""", (rfid_id,))
+    if len(res) == 0:
+        raise ValidationError("User with rfid_id=%s not found" % rfid_id, code=404)
+
+    return res[0]
 
 
 @app.route('/users/<rfid_id>', methods=['GET'])
 def get_user(rfid_id):
-    res = query_db("""select * from users where rfid_uid=?""", (rfid_id,))
-    if len(res) == 0:
-        return my_response(error="User with rfid_id=%s not found" % rfid_id, code=404)
+    user = user_by_rfid(rfid_id)
+    return my_response({"user": user})
 
-    return my_response({"user": res[0]})
+
+@app.route('/users/<rfid_id>/equipments', methods=['GET'])
+def get_user_equipment(rfid_id):
+    user_id = user_by_rfid(rfid_id)["user_id"]
+    if 'current_rental' in request.args:
+        current_rental = int(request.args.get('current_rental'))
+        query_str = """select * from rents where user_id=? and end_time is %s""" % ("not null" if current_rental > 0 else "null")
+        res = query_db(query_str, (user_id,))
+    else:
+        res = query_db("""select * from rents where user_id=?""", (user_id,))
+    return my_response({"equipments": res})
 
 
 @app.route('/devices', methods=['POST'])
@@ -90,13 +117,19 @@ def add_device():
     return my_response({"device_id": device_id})
 
 
-@app.route('/devices/<id>', methods=['GET'])
-def get_device(id):
-    res = query_db("""select * from devices where device_id=?""", (id,))
+@app.route('/devices/<int:device_id>', methods=['GET'])
+def get_device(device_id):
+    res = query_db("""select * from devices where device_id=?""", (device_id,))
     if len(res) == 0:
-        return my_response(error="Device with id=%s not found" % id, code=404)
+        return my_response(error="Device with id=%s not found" % device_id, code=404)
 
     return my_response({"device": res[0]})
+
+
+@app.route('/devices/<int:device_id>/equipments', methods=['GET'])
+def get_device_equipment(device_id):
+    res = query_db("""select * from equipments where device_id=?""", (device_id,))
+    return my_response({"equipments": res})
 
 
 @app.route('/equipments', methods=['POST'])
@@ -114,17 +147,17 @@ def add_equipment():
     return my_response({"equipment_id": equipment_id})
 
 
-@app.route('/equipments/<id>', methods=['GET'])
-def get_equipment(id):
-    res = query_db("""select * from equipments where equipment_id=?""", (id,))
+@app.route('/equipments/<equipment_id>', methods=['GET'])
+def get_equipment(equipment_id):
+    res = query_db("""select * from equipments where equipment_id=?""", (equipment_id,))
     if len(res) == 0:
         return my_response(error="Equipment with id=%s not found" % id, code=404)
 
     return my_response({"equipment": res[0]})
 
 
-@app.route('/equipments/<id>', methods=['PUT'])
-def update_equipment(id):
+@app.route('/equipments/<equipment_id>', methods=['PUT'])
+def update_equipment(equipment_id):
     if not request.is_json:
         return my_response(error="Body should contains JSON", code=400)
 
@@ -138,15 +171,15 @@ def update_equipment(id):
     for key, val in query_params.items():
         query_params_str = query_params_str + key + "=" + (str(val) if val is not None else "null") + ","
 
-    row_count = query_db("update equipments set %s where equipment_id=%s" % (query_params_str[:-1], id), ret_rowcount=True)
+    row_count = query_db("update equipments set %s where equipment_id=%s" % (query_params_str[:-1], equipment_id), ret_rowcount=True)
     if row_count == 0:
-        return my_response(error="Equipment with id=%s not found" % id, code=404)
+        return my_response(error="Equipment with id=%s not found" % equipment_id, code=404)
 
     return my_response()
 
 
 @app.route('/rents', methods=['POST'])
-def add_rent():
+def start_rent():
     if not request.is_json:
         return my_response(error="Body should contains JSON", code=400)
 
@@ -158,11 +191,7 @@ def add_rent():
     if "user_id" in request.json:
         user_id = request.json["user_id"]
     elif "rfid_id" in request.json:
-        res = get_user(request.json["user_id"])
-        if res["is_ok"]:
-            user_id = res["user"]["user_id"]
-        else:
-            return res
+        user_id = user_by_rfid(request.json["rfid_id"])["user_id"]
     else:
         return my_response(error="Request should contains rfid_id or user_id", code=400)
 
