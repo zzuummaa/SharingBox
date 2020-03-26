@@ -22,15 +22,17 @@ def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE, isolation_level=None)
+        query_db("""PRAGMA foreign_keys = 1""")
         db.row_factory = make_dicts
     return db
 
 
-def query_db(query, args=(), one=False):
+def query_db(query, args=(), ret_lastrowid=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
+    last_row_id = cur.lastrowid
     cur.close()
-    return (rv[0] if rv else None) if one else rv
+    return last_row_id if ret_lastrowid else rv
 
 
 app = Flask(__name__)
@@ -62,7 +64,7 @@ def add_user():
         return my_response(error="Body should contains JSON", code=400)
 
     if "user_name" not in request.json or "rfid_uid" not in request.json:
-        return my_response(error="Request parameters not set", code=400)
+        return my_response(error="Invalid request parameters", code=400)
 
     user_params = (request.json["user_name"], request.json["rfid_uid"])
     res = query_db("""insert into users(user_name, rfid_uid) values(?,?)""", user_params)
@@ -78,20 +80,63 @@ def get_user(rfid_id):
     return my_response({"user": res[0]})
 
 
-@app.route('/devices', methods=['GET'])
+@app.route('/devices', methods=['POST'])
 def add_device():
-    token = uuid4().hex
-    res = query_db("""insert into devices(device_token) values(?)""", (token,))
-    return my_response({"token": token})
+    device_id = query_db("""insert into devices default values""", ret_lastrowid=True)
+    return my_response({"device_id": device_id})
 
 
-@app.route('/devices/<token>', methods=['GET'])
-def get_device(token):
-    res = query_db("""select * from devices where device_token=?""", (token,))
+@app.route('/devices/<id>', methods=['GET'])
+def get_device(id):
+    res = query_db("""select * from devices where device_id=?""", (id,))
     if len(res) == 0:
-        abort(make_response(jsonify(message="Device with token=%s not found" % token), 404))
+        return my_response(error="Device with id=%s not found" % id, code=404)
 
     return my_response({"device": res[0]})
+
+
+@app.route('/equipments', methods=['POST'])
+def add_equipment():
+    if not request.is_json:
+        return my_response(error="Body should contains JSON", code=400)
+
+    if "device_id" not in request.json:
+        return my_response(error="Invalid request parameters", code=400)
+
+    device_id = request.json["device_id"]
+    user_id = request.json["user_id"] if "user_id" in request.json else None
+
+    equipment_id = query_db("""insert into equipments(device_id, user_id) values(?,?)""", (device_id, user_id), ret_lastrowid=True)
+
+    return my_response({"equipment_id": equipment_id})
+
+
+@app.route('/equipments/<id>', methods=['GET'])
+def get_equipment(id):
+    res = query_db("""select * from equipments where equipment_id=?""", (id,))
+    if len(res) == 0:
+        return my_response(error="Equipment with id=%s not found" % id, code=404)
+
+    return my_response({"equipment": res[0]})
+
+
+@app.route('/equipments/<id>', methods=['PUT'])
+def update_equipment(id):
+    if not request.is_json:
+        return my_response(error="Body should contains JSON", code=400)
+
+    query_params = {}
+    if "device_id" in request.json: query_params["device_id"] = request.json["device_id"]
+
+    if len(query_params) == 0:
+        return my_response()
+
+    query_params_str = ""
+    for key, val in query_params.items():
+        query_params_str = query_params_str + key + "=" + (str(val) if val is not None else "null") + ","
+
+    query_db("update equipments set %s where equipment_id=%s" % (query_params_str[:-1], id))
+    return my_response()
 
 
 if __name__ == '__main__':

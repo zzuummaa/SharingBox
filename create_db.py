@@ -14,17 +14,14 @@ cursor.execute("""CREATE TABLE users (
                   )""")
 
 cursor.execute("""CREATE TABLE devices (
-                    device_id integer primary key autoincrement,
-                    device_token text not null,
-                    UNIQUE(device_token)
+                    device_id integer primary key autoincrement
                   )""")
 
 cursor.execute("""CREATE TABLE equipments (
                     equipment_id integer primary key autoincrement,
-                    user_id   integer,
-                    device_id integer,
+                    device_id integer not null,
+                    FOREIGN KEY(device_id) REFERENCES devices(device_id),
                     FOREIGN KEY(user_id) REFERENCES users(user_id)
-                    FOREIGN KEY(device_id) REFERENCES devices(device_id)
                   )""")
 
 cursor.execute("""CREATE TABLE rents (
