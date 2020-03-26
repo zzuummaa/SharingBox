@@ -20,8 +20,7 @@ cursor.execute("""CREATE TABLE devices (
 cursor.execute("""CREATE TABLE equipments (
                     equipment_id integer primary key autoincrement,
                     device_id integer not null,
-                    FOREIGN KEY(device_id) REFERENCES devices(device_id),
-                    FOREIGN KEY(user_id) REFERENCES users(user_id)
+                    FOREIGN KEY(device_id) REFERENCES devices(device_id)
                   )""")
 
 cursor.execute("""CREATE TABLE rents (
@@ -30,6 +29,6 @@ cursor.execute("""CREATE TABLE rents (
                     user_id integer not null,
                     begin_time datetime not null,
                     end_time datetime,
-                    FOREIGN KEY(equipment_id) REFERENCES equipments(equipment_id)
+                    FOREIGN KEY(equipment_id) REFERENCES equipments(equipment_id),
                     FOREIGN KEY(user_id) REFERENCES users(user_id)
                   )""")

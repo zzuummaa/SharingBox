@@ -2,6 +2,7 @@
 from flask import Flask, jsonify, request, abort, g, make_response
 import sqlite3
 from uuid import uuid4
+import datetime
 
 DATABASE = "sharingbox.db"
 
@@ -107,9 +108,8 @@ def add_equipment():
         return my_response(error="Invalid request parameters", code=400)
 
     device_id = request.json["device_id"]
-    user_id = request.json["user_id"] if "user_id" in request.json else None
 
-    equipment_id = query_db("""insert into equipments(device_id, user_id) values(?,?)""", (device_id, user_id), ret_lastrowid=True)
+    equipment_id = query_db("""insert into equipments(device_id) values(?)""", (device_id,), ret_lastrowid=True)
 
     return my_response({"equipment_id": equipment_id})
 
@@ -150,6 +150,11 @@ def add_rent():
     if not request.is_json:
         return my_response(error="Body should contains JSON", code=400)
 
+    if "equipment_id" not in request.json:
+        return my_response(error="Request should contains equipment_id", code=400)
+    else:
+        equipment_id = request.json["equipment_id"]
+
     if "user_id" in request.json:
         user_id = request.json["user_id"]
     elif "rfid_id" in request.json:
@@ -161,6 +166,34 @@ def add_rent():
     else:
         return my_response(error="Request should contains rfid_id or user_id", code=400)
 
+    begin_time = datetime.datetime.now()
+
+    # Dangeeeeerooouuuuus!!! Not transactional call with insert new opened rent.
+    opened_rents_count = len(query_db("select * from rents where equipment_id = ? and end_time is null", (equipment_id,)))
+    if opened_rents_count > 0:
+        return my_response(error="Equipment with id=%d already rented" % equipment_id, code=403)
+
+    rent_id = query_db("insert into rents(equipment_id, user_id, begin_time) values(?,?,?)", (equipment_id, user_id, begin_time), ret_lastrowid=True)
+    return my_response({"rent_id": rent_id})
+
+
+@app.route('/rents/<id>', methods=['PUT'])
+def finish_rent(id):
+    end_time = datetime.datetime.now()
+    row_count = query_db("update rents set end_time=? where rent_id=?", (end_time, id), ret_rowcount=True)
+    if row_count == 0:
+        return my_response(error="Rent with id=%s not found" % id, code=404)
+
+    return my_response()
+
+
+@app.route('/rents/<id>', methods=['GET'])
+def get_rent(id):
+    res = query_db("""select * from rents where rent_id=?""", (id,))
+    if len(res) == 0:
+        return my_response(error="Equipment with id=%s not found" % id, code=404)
+
+    return my_response({"rent": res[0]})
 
 
 if __name__ == '__main__':
