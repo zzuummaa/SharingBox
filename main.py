@@ -27,12 +27,15 @@ def get_db():
     return db
 
 
-def query_db(query, args=(), ret_lastrowid=False):
+def query_db(query, args=(), ret_lastrowid=False, ret_rowcount=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
-    last_row_id = cur.lastrowid
     cur.close()
-    return last_row_id if ret_lastrowid else rv
+    if ret_lastrowid:
+        return cur.lastrowid
+    elif ret_rowcount:
+        return cur.rowcount
+    return rv
 
 
 app = Flask(__name__)
@@ -135,8 +138,29 @@ def update_equipment(id):
     for key, val in query_params.items():
         query_params_str = query_params_str + key + "=" + (str(val) if val is not None else "null") + ","
 
-    query_db("update equipments set %s where equipment_id=%s" % (query_params_str[:-1], id))
+    row_count = query_db("update equipments set %s where equipment_id=%s" % (query_params_str[:-1], id), ret_rowcount=True)
+    if row_count == 0:
+        return my_response(error="Equipment with id=%s not found" % id, code=404)
+
     return my_response()
+
+
+@app.route('/rents', methods=['POST'])
+def add_rent():
+    if not request.is_json:
+        return my_response(error="Body should contains JSON", code=400)
+
+    if "user_id" in request.json:
+        user_id = request.json["user_id"]
+    elif "rfid_id" in request.json:
+        res = get_user(request.json["user_id"])
+        if res["is_ok"]:
+            user_id = res["user"]["user_id"]
+        else:
+            return res
+    else:
+        return my_response(error="Request should contains rfid_id or user_id", code=400)
+
 
 
 if __name__ == '__main__':

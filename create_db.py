@@ -26,8 +26,10 @@ cursor.execute("""CREATE TABLE equipments (
 
 cursor.execute("""CREATE TABLE rents (
                     rent_id integer primary key autoincrement,
+                    equipment_id integer not null,
                     user_id integer not null,
                     begin_time datetime not null,
                     end_time datetime,
+                    FOREIGN KEY(equipment_id) REFERENCES equipments(equipment_id)
                     FOREIGN KEY(user_id) REFERENCES users(user_id)
                   )""")
