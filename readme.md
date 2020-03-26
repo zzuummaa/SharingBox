@@ -5,7 +5,7 @@
 #### Users
 * `/users POST`
 * `/users/<rfid_id> GET`
-* `/users/<rfid_id>/equipments GET`
+* `/users/<rfid_id>/rents GET`
 
 #### Devices
 * `/devices POST`

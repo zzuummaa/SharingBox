@@ -99,7 +99,7 @@ def get_user(rfid_id):
     return my_response({"user": user})
 
 
-@app.route('/users/<rfid_id>/equipments', methods=['GET'])
+@app.route('/users/<rfid_id>/rents', methods=['GET'])
 def get_user_equipment(rfid_id):
     user_id = user_by_rfid(rfid_id)["user_id"]
     if 'current_rental' in request.args:
@@ -108,7 +108,7 @@ def get_user_equipment(rfid_id):
         res = query_db(query_str, (user_id,))
     else:
         res = query_db("""select * from rents where user_id=?""", (user_id,))
-    return my_response({"equipments": res})
+    return my_response({"rents": res})
 
 
 @app.route('/devices', methods=['POST'])
