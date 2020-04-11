@@ -200,7 +200,7 @@ def start_rent():
     # Dangeeeeerooouuuuus!!! Not transactional call with insert new opened rent.
     opened_rents_count = len(query_db("select * from rents where equipment_id = ? and end_time is null", (equipment_id,)))
     if opened_rents_count > 0:
-        return my_response(error="Equipment with id=%d already rented" % equipment_id, code=403)
+        return my_response(error="Equipment with id=%s already rented" % equipment_id, code=403)
 
     rent_id = query_db("insert into rents(equipment_id, user_id, begin_time) values(?,?,?)", (equipment_id, user_id, begin_time), ret_lastrowid=True)
     return my_response({"rent_id": rent_id})
