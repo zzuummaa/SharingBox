@@ -43,4 +43,4 @@ jobs:
         run: docker build -f Dockerfile .
       - name: Push image to docker.io
         # Пушим образ в registry
-        run: docker push $LOGIN/$NAME:${GITHUB_REF}
+        run: docker push $LOGIN/$NAME
