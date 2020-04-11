@@ -4,7 +4,7 @@ name: Run tests on any Push event
 on:
   push:
     tags:
-      - '!refs/tags/*'
+      - '*'
     branches:
       - '*'
 jobs:
