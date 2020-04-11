@@ -6,5 +6,7 @@ COPY ./ /app
 RUN apk update && pip install -r /app/requirements.txt --no-cache-dir
 # Говорим контейнеру какой порт слушай
 EXPOSE 80
+# Монтируем папку /db для совместного использования с контейнером
+VOLUME /db
 # В качестве альтернативы distutils можно просто указать что выполнить
 CMD python /app/main.py

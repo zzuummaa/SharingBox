@@ -2,8 +2,15 @@
 from flask import Flask, jsonify, request, g
 import sqlite3
 import datetime
+from create_db import create_tables
 
-DATABASE = "sharingbox.db"
+from os import path
+import platform
+
+if platform.system() == 'Linux':
+    DATABASE = "/db/sharingbox.db"
+elif platform.system() == "Windows":
+    DATABASE = "sharingbox.db"
 
 
 def my_response(content=None, error=None, code=200):
@@ -226,4 +233,9 @@ def get_rent(id):
 
 
 if __name__ == '__main__':
+    if not path.exists(DATABASE):
+        cursor = get_db().cursor()
+        create_tables(cursor)
+        cursor.close()
+
     app.run(debug=True, host='0.0.0.0', port=80)
