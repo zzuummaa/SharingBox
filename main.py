@@ -234,8 +234,10 @@ def get_rent(id):
 
 if __name__ == '__main__':
     if not path.exists(DATABASE):
-        cursor = get_db().cursor()
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
         create_tables(cursor)
         cursor.close()
+        conn.close()
 
     app.run(debug=True, host='0.0.0.0', port=80)
