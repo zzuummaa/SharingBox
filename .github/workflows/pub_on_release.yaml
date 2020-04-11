@@ -25,6 +25,7 @@ jobs:
         run: coverage run test.py
       - name: Tests report
         run: coverage report
+
   build_and_pub:
     needs: [run_tests]
     runs-on: [ubuntu-latest]
@@ -39,7 +40,7 @@ jobs:
       - uses: actions/checkout@master
       - name: Build image
         # Собираем image и называем его так как указано в hub.docker т.е. login/repository:version
-        run: docker build -t $LOGIN/$NAME:${GITHUB_REF} -f Dockerfile .
+        run: docker build -f Dockerfile .
       - name: Push image to docker.io
         # Пушим образ в registry
         run: docker push $LOGIN/$NAME:${GITHUB_REF}
