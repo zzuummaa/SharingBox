@@ -1,5 +1,13 @@
 # SharingBox
 
+### Docker
+
+Контейнер запускается только на Linux хостах:
+```cmd
+docker pull zzuummaa/sharing_box:release
+docker run -p 80:80 -v /db:/db zzuummaa/sharing_box:release
+```
+
 ### Описание WEB API
 
 #### Users
