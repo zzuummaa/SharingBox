@@ -76,7 +76,7 @@ def close_connection(exception):
 
 @app.route('/')
 def index():
-    return "[]"
+    return "Hello, sharing box!"
 
 
 @app.route('/users', methods=['POST'])
